@@ -74,7 +74,7 @@
 
   // ── Hero highlighter animation ─────────────────────
   const highlight = document.querySelector('.hero-highlight');
-  if (highlight) setTimeout(() => highlight.classList.add('active'), 500);
+  if (highlight) setTimeout(() => highlight.classList.add('active'), 400);
 
   // ── Active nav links ───────────────────────────────
   const navItems = document.querySelectorAll('.nav-links a');
@@ -89,62 +89,38 @@
   document.querySelectorAll('section[id]').forEach((s) => sectionObserver.observe(s));
 
   // ═══════════════════════════════════════════════════════
-  // MISSION BURST SYSTEM — Whirlwind → Explosion → Physics
+  // MISSION BURST — Whirlwind → Random Explosion → Free Float
   // ═══════════════════════════════════════════════════════
 
   (function initBurst() {
+    if (window.innerWidth < 1100) return;
+
     const heroEl    = document.querySelector('.hero');
     const contentEl = document.querySelector('.hero-content');
     const container = document.querySelector('.hero-missions');
     if (!heroEl || !contentEl || !container) return;
 
-    // All missions with Pic: labels for photo tasks
+    // Fewer, cleaner missions. Photo missions show "Name Pic" format.
     const MISSIONS = [
       { icon: '🏋️',   label: 'Push-ups' },
       { icon: '🧘',   label: 'Plank' },
-      { icon: '🏋️‍♀️', label: 'Squats' },
       { icon: '⭐',   label: 'Jumping Jacks' },
       { icon: '🏃',   label: 'High Knees' },
-      { icon: '🦵',   label: 'Lunges' },
-      { icon: '🚶',   label: 'Walk Steps' },
-      { icon: '🧍',   label: 'Stand Up' },
-      { icon: '📸',   label: 'Pic: Made Bed' },
-      { icon: '💧',   label: 'Pic: Water Bottle' },
-      { icon: '☀️',   label: 'Pic: Sunlight' },
-      { icon: '🪥',   label: 'Pic: Toothbrush' },
-      { icon: '🥤',   label: 'Pic: Glass of Water' },
-      { icon: '🪞',   label: 'Pic: Mirror Selfie' },
+      { icon: '📸',   label: 'Made Bed Pic' },
+      { icon: '💧',   label: 'Water Bottle Pic' },
+      { icon: '☀️',   label: 'Sunlight Pic' },
+      { icon: '🪥',   label: 'Toothbrush Pic' },
+      { icon: '🪞',   label: 'Mirror Selfie Pic' },
       { icon: '📖',   label: 'Bible Prayer' },
       { icon: '📜',   label: 'Torah Reading' },
       { icon: '🕌',   label: 'Quran Verse' },
       { icon: '💬',   label: 'Affirmation' },
-      { icon: '🔢',   label: 'Count Down' },
       { icon: '😊',   label: 'Smile Check' },
-      { icon: '👀',   label: 'Eyes Open' },
-      { icon: '🔵',   label: 'Find Colors' },
-      { icon: '🌅',   label: 'Show Sky' },
       { icon: '🎰',   label: 'Roulette' },
+      { icon: '🔵',   label: 'Find Colors' },
     ];
 
-    // Home positions as [xFrac, yFrac] (center of element).
-    // Validated: left/right columns at xFrac=0.05/0.95 stay outside content area.
-    // Top row (y<0.13) and bottom row (y>0.88) stay outside content area vertically.
-    const HOME_POS = [
-      // Left outer column
-      [0.05, 0.13], [0.05, 0.26], [0.05, 0.39], [0.05, 0.52],
-      [0.05, 0.65], [0.05, 0.78], [0.05, 0.90],
-      // Right outer column
-      [0.95, 0.13], [0.95, 0.26], [0.95, 0.39], [0.95, 0.52],
-      [0.95, 0.65], [0.95, 0.78], [0.95, 0.90],
-      // Top strip (below nav, above hero content)
-      [0.22, 0.10], [0.38, 0.09], [0.54, 0.09], [0.70, 0.10],
-      // Bottom strip (below scroll indicator)
-      [0.18, 0.91], [0.34, 0.92], [0.52, 0.93], [0.68, 0.92], [0.82, 0.91],
-      // Extra corners
-      [0.84, 0.10],
-    ];
-
-    // Build elements (JS-controlled, not from HTML)
+    // Build DOM
     container.innerHTML = '';
     MISSIONS.forEach((m) => {
       const el = document.createElement('div');
@@ -155,94 +131,80 @@
     });
 
     const burstEls = Array.from(container.querySelectorAll('.burst-item'));
-    const N = burstEls.length;
     const items = [];
     let mouseX = -9999, mouseY = -9999;
     let phase = 'init';
+    let springStrength = 0; // 0 during explosion, set weakly after settling
 
-    // Wait for layout to settle so offsetWidth/Height are accurate
     requestAnimationFrame(() => requestAnimationFrame(() => {
       const hr = heroEl.getBoundingClientRect();
-      const W  = hr.width;
-      const H  = hr.height;
-      const cx = W / 2;
-      const cy = H / 2;
+      const W  = hr.width, H = hr.height;
+      const cx = W / 2, cy = H / 2;
 
-      burstEls.forEach((el, i) => {
-        const p  = HOME_POS[i] || [0.5, 0.5];
-        const w  = el.offsetWidth  || 112;
-        const h  = el.offsetHeight || 58;
-        el.style.transform = `translate(${cx - w / 2}px,${cy - h / 2}px) scale(0.05)`;
-        items.push({ el, xFrac: p[0], yFrac: p[1], homeX: p[0] * W, homeY: p[1] * H, x: cx, y: cy, vx: 0, vy: 0, w, h });
+      burstEls.forEach((el) => {
+        const w = el.offsetWidth  || 120;
+        const h = el.offsetHeight || 58;
+        el.style.transform = `translate(${cx - w/2}px,${cy - h/2}px) scale(0.05)`;
+        items.push({ el, x: cx, y: cy, vx: 0, vy: 0, w, h, homeX: cx, homeY: cy });
       });
 
-      setTimeout(() => doWhirlwind(cx, cy, W, H), 150);
+      setTimeout(() => doWhirlwind(cx, cy, W, H), 120);
     }));
 
-    // ── Phase 1: Whirlwind ──────────────────────────────
-    // Orbit radius is large enough to encircle the entire hero content block.
-    // Hero content max-width = 800px → half = 400px. Add clearance → ~450px.
+    // ── Phase 1: Quick whirlwind orbiting around the content ─
     function doWhirlwind(cx, cy, W, H) {
       phase = 'whirl';
-
-      // Dynamic radius: at least 380px, at most 460px, based on viewport
-      const ORBIT_R  = Math.min(Math.max(Math.min(W, H) * 0.46, 380), 460);
-      const DURATION = 1900;          // ms for one full whirlwind
-      const ROTATIONS = 1.5;          // full rotations during whirlwind
+      const ORBIT_R  = Math.min(Math.max(Math.min(W, H) * 0.48, 400), 470);
+      const DURATION = 1100;
+      const ROTATIONS = 0.85;
       const t0 = performance.now();
 
       function tick(now) {
         const elapsed = now - t0;
         const t = Math.min(elapsed / DURATION, 1);
-
-        // Smooth ease-in for radius (cubic ease-in over first 25% of animation)
-        const rEase = t < 0.25 ? (t / 0.25) : 1;
+        const rEase = t < 0.2 ? (t / 0.2) : 1;
         const r = ORBIT_R * (1 - Math.pow(1 - rEase, 3));
-
-        // Opacity: fade in over first 400ms, hold at 0.50
-        const opacity = Math.min(elapsed / 400, 0.50);
-
-        // Scale: 0.5 → 0.72 over the whirlwind
-        const scale = 0.50 + t * 0.22;
+        const opacity = Math.min(elapsed / 280, 0.5);
+        const scale   = 0.50 + t * 0.22;
 
         items.forEach((s, i) => {
-          const baseAngle = (i / N) * Math.PI * 2;
-          const angle     = baseAngle + t * ROTATIONS * Math.PI * 2;
+          const base  = (i / items.length) * Math.PI * 2;
+          const angle = base + t * ROTATIONS * Math.PI * 2;
           s.x = cx + Math.cos(angle) * r;
           s.y = cy + Math.sin(angle) * r;
           s.el.style.opacity   = String(opacity);
-          s.el.style.transform =
-            `translate(${s.x - s.w / 2}px,${s.y - s.h / 2}px) scale(${scale})`;
+          s.el.style.transform = `translate(${s.x - s.w/2}px,${s.y - s.h/2}px) scale(${scale})`;
         });
 
-        if (t < 1) {
-          requestAnimationFrame(tick);
-        } else {
-          doExplode(cx, cy);
-        }
+        if (t < 1) requestAnimationFrame(tick);
+        else doExplode();
       }
-
       requestAnimationFrame(tick);
     }
 
-    // ── Phase 2: Simultaneous Explosion ────────────────
-    // All items explode from center at once toward their home positions.
-    function doExplode(cx, cy) {
+    // ── Phase 2: Simultaneous explosion in RANDOM directions ─
+    function doExplode() {
       items.forEach((s) => {
-        const dx = s.homeX - cx;
-        const dy = s.homeY - cy;
-        const d  = Math.sqrt(dx * dx + dy * dy) || 1;
-        const speed = 24 + Math.random() * 8;
-        s.vx = (dx / d) * speed + (Math.random() - 0.5) * 5;
-        s.vy = (dy / d) * speed + (Math.random() - 0.5) * 5;
+        // Truly random angle — fills the whole space, not just toward edges
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 16 + Math.random() * 22;
+        s.vx = Math.cos(angle) * speed;
+        s.vy = Math.sin(angle) * speed;
       });
-      phase = 'physics';
+      phase = 'exploding';
       startPhysics();
+
+      // After 2.2s, boxes have settled → record their position as "home"
+      // A very weak spring then keeps them loosely near where they landed
+      setTimeout(() => {
+        items.forEach((s) => { s.homeX = s.x; s.homeY = s.y; });
+        springStrength = 0.006;
+        phase = 'floating';
+      }, 2200);
     }
 
-    // ── Phase 3: Spring Physics + Cursor Repulsion ──────
+    // ── Phase 3: Free-floating liquid physics ─────────────
     function startPhysics() {
-      // Mouse repulsion: boxes float away from cursor
       heroEl.addEventListener('mousemove', (e) => {
         const r = heroEl.getBoundingClientRect();
         mouseX = e.clientX - r.left;
@@ -250,44 +212,67 @@
       });
       heroEl.addEventListener('mouseleave', () => { mouseX = mouseY = -9999; });
 
-      const SPRING   = 0.052;   // spring constant toward home
-      const DAMP     = 0.80;    // velocity damping per frame
-      const REP_R    = 145;     // cursor repulsion radius px
-      const REP_F    = 20;      // cursor repulsion force
+      const DAMP  = 0.93;
+      const REP_R = 220;   // cursor radius — react from far away
+      const REP_F = 35;    // cursor force
 
-      // Compute forbidden zone (hero content bounding box + margin)
       function getFz() {
         const hr = heroEl.getBoundingClientRect();
         const cr = contentEl.getBoundingClientRect();
         return {
-          l: cr.left   - hr.left - 52,
-          t: cr.top    - hr.top  - 26,
-          r: cr.right  - hr.left + 52,
-          b: cr.bottom - hr.top  + 26,
+          l: cr.left   - hr.left - 60,
+          t: cr.top    - hr.top  - 32,
+          r: cr.right  - hr.left + 60,
+          b: cr.bottom - hr.top  + 32,
         };
       }
 
       function loop() {
         const hr = heroEl.getBoundingClientRect();
-        const W  = hr.width, H = hr.height;
+        const W = hr.width, H = hr.height;
         const fz = getFz();
+        const fzStrength = phase === 'exploding' ? 4.0 : 2.2;
 
         items.forEach((s) => {
-          // Update home position for current viewport size
-          s.homeX = s.xFrac * W;
-          s.homeY = s.yFrac * H;
+          // Weak spring to wherever each box landed after explosion
+          if (springStrength > 0) {
+            s.vx += (s.homeX - s.x) * springStrength;
+            s.vy += (s.homeY - s.y) * springStrength;
+          }
 
-          // Spring toward home
-          s.vx += (s.homeX - s.x) * SPRING;
-          s.vy += (s.homeY - s.y) * SPRING;
+          // Gentle random drift — organic float feel
+          s.vx += (Math.random() - 0.5) * 0.06;
+          s.vy += (Math.random() - 0.5) * 0.06;
 
-          // Cursor repulsion
+          // Box-to-box soft repulsion — keeps them nicely spread
+          items.forEach((other) => {
+            if (other === s) return;
+            const ex = s.x - other.x, ey = s.y - other.y;
+            const ed = Math.sqrt(ex * ex + ey * ey);
+            const minD = 140;
+            if (ed < minD && ed > 0.5) {
+              const f = (1 - ed / minD) * 0.09;
+              s.vx += (ex / ed) * f;
+              s.vy += (ey / ed) * f;
+              // Keep home away from other homes too (after settling)
+              if (springStrength > 0) {
+                const hx = s.homeX - other.homeX, hy = s.homeY - other.homeY;
+                const hd = Math.sqrt(hx * hx + hy * hy);
+                if (hd < minD && hd > 0.5) {
+                  s.homeX += (hx / hd) * 0.5;
+                  s.homeY += (hy / hd) * 0.5;
+                }
+              }
+            }
+          });
+
+          // Cursor repulsion — smooth quadratic falloff
           const dx = s.x - mouseX, dy = s.y - mouseY;
           const d  = Math.sqrt(dx * dx + dy * dy);
           if (d < REP_R && d > 0.5) {
-            const f = Math.pow(1 - d / REP_R, 1.5) * REP_F;
-            s.vx += (dx / d) * f;
-            s.vy += (dy / d) * f;
+            const strength = Math.pow(1 - d / REP_R, 2) * REP_F;
+            s.vx += (dx / d) * strength;
+            s.vy += (dy / d) * strength;
           }
 
           // Damping
@@ -298,30 +283,34 @@
           s.x += s.vx;
           s.y += s.vy;
 
-          // Keep within hero bounds
-          const hw = s.w / 2 + 10, hh = s.h / 2 + 10;
-          s.x = Math.max(hw, Math.min(W - hw, s.x));
-          s.y = Math.max(hh, Math.min(H - hh, s.y));
+          // Reflective boundary — boxes bounce off hero edges
+          const hw = s.w / 2 + 6, hh = s.h / 2 + 6;
+          if (s.x < hw)     { s.x = hw;     s.vx =  Math.abs(s.vx) * 0.55; }
+          if (s.x > W - hw) { s.x = W - hw; s.vx = -Math.abs(s.vx) * 0.55; }
+          if (s.y < hh)     { s.y = hh;     s.vy =  Math.abs(s.vy) * 0.55; }
+          if (s.y > H - hh) { s.y = H - hh; s.vy = -Math.abs(s.vy) * 0.55; }
 
-          // Push out of forbidden zone (hero content area)
-          const il = s.x - s.w / 2 - 5, ir = s.x + s.w / 2 + 5;
-          const it = s.y - s.h / 2 - 5, ib = s.y + s.h / 2 + 5;
+          // Forbidden zone: push boxes out of hero content area
+          const il = s.x - s.w/2 - 8, ir = s.x + s.w/2 + 8;
+          const it = s.y - s.h/2 - 8, ib = s.y + s.h/2 + 8;
           if (il < fz.r && ir > fz.l && it < fz.b && ib > fz.t) {
             const pL = ir - fz.l, pR = fz.r - il, pT = ib - fz.t, pB = fz.b - it;
             const mn = Math.min(pL, pR, pT, pB);
-            if      (mn === pL) { s.x -= pL; s.vx = Math.min(s.vx, -0.5); }
-            else if (mn === pR) { s.x += pR; s.vx = Math.max(s.vx, 0.5);  }
-            else if (mn === pT) { s.y -= pT; s.vy = Math.min(s.vy, -0.5); }
-            else                { s.y += pB; s.vy = Math.max(s.vy, 0.5);  }
+            const str = fzStrength;
+            if      (mn === pL) { s.vx -= pL * 0.12 + str; }
+            else if (mn === pR) { s.vx += pR * 0.12 + str; }
+            else if (mn === pT) { s.vy -= pT * 0.12 + str; }
+            else                { s.vy += pB * 0.12 + str; }
+            // Nudge home away from forbidden zone too
+            if (springStrength > 0) { s.homeX = s.x; s.homeY = s.y; }
           }
 
-          s.el.style.transform = `translate(${s.x - s.w / 2}px,${s.y - s.h / 2}px)`;
-          s.el.style.opacity   = '0.62';
+          s.el.style.transform = `translate(${s.x - s.w/2}px,${s.y - s.h/2}px)`;
+          s.el.style.opacity   = '0.76';
         });
 
         requestAnimationFrame(loop);
       }
-
       loop();
     }
   })();

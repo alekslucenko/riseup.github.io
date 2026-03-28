@@ -72,9 +72,14 @@
     }
   }, { passive: true });
 
-  // ── Hero highlighter animation ─────────────────────
-  const highlight = document.querySelector('.hero-highlight');
-  if (highlight) setTimeout(() => highlight.classList.add('active'), 400);
+  // ── Hero highlighter (full h1 underline; delay aligns with mobile stagger) ──
+  const highlight = document.querySelector('.hero h1.hero-highlight');
+  if (highlight) {
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const mobile = window.matchMedia('(max-width: 1100px)').matches;
+    const delay = reduce ? 0 : mobile ? 680 : 420;
+    setTimeout(() => highlight.classList.add('active'), delay);
+  }
 
   // ── Active nav links ───────────────────────────────
   const navItems = document.querySelectorAll('.nav-links a');

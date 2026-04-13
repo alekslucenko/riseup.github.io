@@ -73,7 +73,7 @@
   }, { passive: true });
 
   // ── Hero highlighter (full h1 underline; delay aligns with mobile stagger) ──
-  const highlight = document.querySelector('.hero h1.hero-highlight');
+  const highlight = document.querySelector('.hero .hero-highlight');
   if (highlight) {
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const mobile = window.matchMedia('(max-width: 1100px)').matches;

@@ -457,17 +457,27 @@ section {
   color: var(--text);
 }
 
-/* Full headline underline (works when title wraps — inline span ::after only covered last line) */
-.hero h1.hero-highlight {
+/* Hook headline: desktop = one underline; mobile = one underline per stacked line */
+.hero h1 .hero-highlight {
   position: relative;
-  width: fit-content;
+  display: inline-block;
   max-width: 100%;
   margin-left: auto;
   margin-right: auto;
   text-wrap: balance;
 }
 
-.hero h1.hero-highlight::after {
+.hero-hook-br {
+  display: none;
+}
+
+.hero-highlight-join {
+  white-space: pre;
+}
+
+/* Shared underline look */
+.hero h1 .hero-highlight::after,
+.hero h1 .hero-highlight-line::after {
   content: '';
   position: absolute;
   left: 0;
@@ -489,8 +499,51 @@ section {
   transition: transform 1.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.hero h1.hero-highlight.active::after {
-  transform: scaleX(1);
+.hero h1 .hero-highlight-line {
+  position: relative;
+  display: inline;
+}
+
+/* Desktop / wide: single bar under the full phrase */
+@media (min-width: 1101px) {
+  .hero h1 .hero-highlight-line::after {
+    display: none;
+  }
+
+  .hero h1 .hero-highlight::after {
+    display: block;
+  }
+
+  .hero h1 .hero-highlight.active::after {
+    transform: scaleX(1);
+  }
+}
+
+/* Mobile / narrow: hide wrapper bar; underline each line */
+@media (max-width: 1100px) {
+  .hero-hook-br {
+    display: block;
+  }
+
+  .hero-highlight-join {
+    display: none;
+  }
+
+  .hero h1 .hero-highlight::after {
+    display: none;
+  }
+
+  .hero h1 .hero-highlight-line {
+    display: inline-block;
+  }
+
+  .hero h1 .hero-highlight-line::after {
+    display: block;
+  }
+
+  .hero h1 .hero-highlight.active .hero-highlight-line::after {
+    transform: scaleX(1);
+  }
 }
 
 .hero p {
@@ -676,14 +729,14 @@ section {
     transition-delay: 0.05s;
   }
 
-  .hero h1.hero-highlight.animate {
+  .hero h1.animate {
     transform: translateY(22px);
     transition:
       opacity 0.9s var(--spring),
       transform 0.9s var(--spring);
   }
 
-  .hero h1.hero-highlight.animate.visible {
+  .hero h1.animate.visible {
     opacity: 1;
     transform: translateY(0);
     transition-delay: 0.14s;
@@ -723,10 +776,14 @@ section {
     transition-delay: 0.48s;
   }
 
-  .hero h1.hero-highlight::after {
+  .hero h1 .hero-highlight-line::after {
     transition:
       transform 1.15s cubic-bezier(0.16, 1, 0.3, 1);
     transition-delay: 0.52s;
+  }
+
+  .hero h1 .hero-highlight.active .hero-highlight-line:last-of-type::after {
+    transition-delay: 0.62s;
   }
 
   .hero-scroll-indicator {
@@ -754,7 +811,7 @@ section {
   }
 
   .hero .hero-badge.animate.scale-in,
-  .hero h1.hero-highlight.animate,
+  .hero h1.animate,
   .hero p.hero-lead.animate,
   .hero .hero-cta.animate {
     transform: none;
@@ -763,13 +820,14 @@ section {
   }
 
   .hero .hero-badge.animate.scale-in.visible,
-  .hero h1.hero-highlight.animate.visible,
+  .hero h1.animate.visible,
   .hero p.hero-lead.animate.visible,
   .hero .hero-cta.animate.visible {
     transition-delay: 0ms;
   }
 
-  .hero h1.hero-highlight::after {
+  .hero h1 .hero-highlight::after,
+  .hero h1 .hero-highlight-line::after {
     transition: none;
     transition-delay: 0ms;
     transform: scaleX(1);
@@ -1858,7 +1916,7 @@ footer {
     overflow: hidden;
   }
 
-  .hero h1.hero-highlight {
+  .hero h1 {
     font-size: clamp(34px, 9.5vw, 52px);
     line-height: 1.14;
     letter-spacing: -0.035em;
@@ -1991,7 +2049,7 @@ footer {
     padding: max(96px, calc(env(safe-area-inset-top, 0px) + 78px)) 16px 76px;
   }
 
-  .hero h1.hero-highlight {
+  .hero h1 {
     font-size: clamp(30px, 10.5vw, 44px);
     line-height: 1.12;
   }
